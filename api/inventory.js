@@ -24,7 +24,9 @@ module.exports = async function handler(req, res) {
       (a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt)
     )[0];
 
-    const response = await fetch(latest.url);
+    const response = await fetch(latest.url, {
+      headers: { Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}` },
+    });
     if (!response.ok) throw new Error(`Blob fetch failed: ${response.status}`);
     const data = await response.json();
 
