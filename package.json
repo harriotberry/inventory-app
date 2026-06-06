@@ -1,0 +1,13 @@
+{
+  "name": "inventory-search",
+  "version": "1.0.0",
+  "description": "Inventory search app — receives daily Cin7 report via Mailgun",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@vercel/blob": "^0.23.4",
+    "busboy": "^1.6.0",
+    "xlsx": "^0.18.5"
+  }
+}
