@@ -1,17 +1,4 @@
-/**
- * api/webhook.js
- * Receives the daily Cin7 inventory report from Mailgun.
- *
- * Mailgun sends a multipart POST to this endpoint whenever an email
- * arrives at your inbound address. This handler:
- *   1. Verifies the request is genuinely from Mailgun (signature check)
- *   2. Finds the Excel (.xlsx) attachment
- *   3. Parses it with parse-report.js
- *   4. Saves the result to Vercel Blob storage
- */
-
 const busboy = require('busboy');
-const crypto = require('crypto');
 const { put, list, del } = require('@vercel/blob');
 const { parseReport } = require('../lib/parse-report');
 
@@ -19,16 +6,6 @@ const { parseReport } = require('../lib/parse-report');
 module.exports.config = {
   api: { bodyParser: false },
 };
-
-// ── Mailgun signature verification ───────────────────────────────────────────
-function verifyMailgunSignature(signingKey, timestamp, token, signature) {
-  if (!signingKey) return true; // skip if key not configured
-  const hash = crypto
-    .createHmac('sha256', signingKey)
-    .update(timestamp + token)
-    .digest('hex');
-  return hash === signature;
-}
 
 // ── Multipart parser ──────────────────────────────────────────────────────────
 function parseMultipart(req) {
@@ -71,33 +48,27 @@ module.exports = async function handler(req, res) {
     return res.status(405).send('Method Not Allowed');
   }
 
-  try {
-    const { fields, excelBuffer, excelFilename } = await parseMultipart(req);
+  // Verify secret token
+  const secret = process.env.WEBHOOK_SECRET;
+  if (secret && req.headers['x-webhook-secret'] !== secret) {
+    return res.status(401).send('Unauthorized');
+  }
 
-    // Verify the request came from Mailgun
-    const signingKey = process.env.MAILGUN_SIGNING_KEY;
-    if (signingKey) {
-      const { timestamp, token, signature } = fields;
-      if (!verifyMailgunSignature(signingKey, timestamp, token, signature)) {
-        console.warn('Mailgun signature verification failed');
-        return res.status(401).send('Unauthorized');
-      }
-    }
+  try {
+    const { excelBuffer, excelFilename } = await parseMultipart(req);
 
     if (!excelBuffer) {
-      console.warn('No Excel attachment found in email');
+      console.warn('No Excel attachment found');
       return res.status(400).send('No Excel attachment found');
     }
 
     console.log(`Processing attachment: ${excelFilename}`);
 
-    // Parse the Excel report
     const { period, products } = parseReport(excelBuffer);
     console.log(`Parsed report: ${period}, ${products.length} SKUs`);
 
     const payload = JSON.stringify({ reportDate: period, products });
 
-    // Replace any existing stored report
     const { blobs } = await list({ prefix: 'inventory-latest' });
     if (blobs.length > 0) {
       await Promise.all(blobs.map(b => del(b.url)));
