@@ -92,21 +92,30 @@ module.exports = async function handler(req, res) {
     console.log(`Processing attachment: ${excelFilename}`);
 
     // Parse the Excel report
-    const { period, products } = parseReport(excelBuffer);
-    console.log(`Parsed report: ${period}, ${products.length} SKUs`);
+    let period, products;
+    try {
+      ({ period, products } = parseReport(excelBuffer));
+      console.log(`Parsed report: ${period}, ${products.length} SKUs`);
+    } catch (e) {
+      return res.status(500).send(`Parse error: ${e.message}`);
+    }
 
     const payload = JSON.stringify({ reportDate: period, products });
 
     // Replace any existing stored report
-    const { blobs } = await list({ prefix: 'inventory-latest' });
-    if (blobs.length > 0) {
-      await Promise.all(blobs.map(b => del(b.url)));
+    try {
+      const { blobs } = await list({ prefix: 'inventory-latest' });
+      if (blobs.length > 0) {
+        await Promise.all(blobs.map(b => del(b.url)));
+      }
+      await put('inventory-latest.json', payload, {
+        access: 'public',
+        contentType: 'application/json',
+        addRandomSuffix: false,
+      });
+    } catch (e) {
+      return res.status(500).send(`Blob error: ${e.message}`);
     }
-    await put('inventory-latest.json', payload, {
-      access: 'public',
-      contentType: 'application/json',
-      addRandomSuffix: false,
-    });
 
     console.log('Inventory saved to blob storage');
     return res.status(200).send('OK');
