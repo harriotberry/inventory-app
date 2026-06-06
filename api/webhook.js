@@ -113,6 +113,6 @@ module.exports = async function handler(req, res) {
 
   } catch (err) {
     console.error('Webhook error:', err);
-    return res.status(500).send('Internal server error');
+    return res.status(500).send(`Error: ${err.message}`);
   }
 };
