@@ -28,8 +28,7 @@ module.exports = async function handler(req, res) {
     if (!response.ok) throw new Error(`Blob fetch failed: ${response.status}`);
     const data = await response.json();
 
-    // Cache for 1 hour — report only updates once a day
-    res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=7200');
+    res.setHeader('Cache-Control', 'private, no-cache');
     return res.status(200).json(data);
 
   } catch (err) {
