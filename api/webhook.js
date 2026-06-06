@@ -103,7 +103,7 @@ module.exports = async function handler(req, res) {
       await Promise.all(blobs.map(b => del(b.url)));
     }
     await put('inventory-latest.json', payload, {
-      access: 'private',
+      access: 'public',
       contentType: 'application/json',
       addRandomSuffix: false,
     });
