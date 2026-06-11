@@ -313,8 +313,12 @@ function escHtml(s) {
 }
 function highlight(text, q) {
   if (!q) return escHtml(text);
-  const re = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
-  return escHtml(text).replace(re, '<mark>$1</mark>');
+  let result = escHtml(text);
+  q.trim().split(/\s+/).filter(Boolean).forEach(token => {
+    const re = new RegExp(`(${token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
+    result = result.replace(re, '<mark>$1</mark>');
+  });
+  return result;
 }
 function totals(product) {
   return product.locations.reduce((acc, l) => ({
@@ -333,9 +337,10 @@ function availableForProduct(p) {
 
 // ── Filter ────────────────────────────────────────────────────────────────────
 function filterProducts() {
-  const q = query.toLowerCase().trim();
+  const tokens = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
   return PRODUCTS.filter(p => {
-    const matchesQuery = !q || [p.product, p.brand, p.sku].some(f => f && f.toLowerCase().includes(q));
+    const haystack = [p.product, p.brand, p.sku].filter(Boolean).join(' ').toLowerCase();
+    const matchesQuery = tokens.length === 0 || tokens.every(t => haystack.includes(t));
     if (!matchesQuery) return false;
     if (activeLocation === 'ALL') return true;
     return p.locations.some(l => l.loc === activeLocation && (l.available > 0 || l.onHand > 0));
