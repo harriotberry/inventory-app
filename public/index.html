@@ -325,7 +325,7 @@ function totals(product) {
     onHand:    acc.onHand    + l.onHand,
     allocated: acc.allocated + l.allocated,
     onOrder:   acc.onOrder   + l.onOrder,
-    available: acc.available + l.available,
+    available: acc.available + (l.loc === 'ARAMEX DELIVERIES DAMAGED IN TRANSIT' ? 0 : l.available),
     inTransit: acc.inTransit + l.inTransit,
   }), { onHand:0, allocated:0, onOrder:0, available:0, inTransit:0 });
 }
