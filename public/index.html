@@ -263,7 +263,27 @@
 let PRODUCTS   = [];
 let REPORT_DATE = '';
 let query          = '';
-let activeLocation = 'ALL';
+let activePill = 'ALL';
+
+// Quick-filter pills. Hand-maintained: update this list when Cin7 adds, renames
+// or retires a warehouse. `locs` are the exact location names as they appear in
+// the daily report, and one pill may cover several of them. Locations without a
+// pill still appear in the By Location breakdown on the product page.
+const PILLS = [
+  { key: 'ALL',      label: 'All',      locs: null },
+  { key: 'BAM_VIC',  label: 'BAM VIC',  locs: ['BAM Wine Logistics VIC'] },
+  { key: 'BAM_NSW',  label: 'BAM NSW',  locs: ['BAM Wine Logistics NSW'] },
+  { key: 'BAM_QLD',  label: 'BAM QLD',  locs: ['BAM Wine Logistics QLD'] },
+  { key: 'HOLDING',  label: 'Holding',  locs: ['Holding Warehouse/Export Stock VIC', 'Holding Warehouse NSW'] },
+  { key: 'ELWOOD',   label: 'Elwood',   locs: ['ELWOOD BATHERS - CONSIGNMENT STOCK'] },
+  { key: 'DROUIN',   label: 'Drouin',   locs: ['DOUG LOCKWOOD WAREHOUSE DROUIN'] },
+  { key: 'SANECTOR', label: 'Sanector', locs: ['SANECTOR Mildura/Melbourne'] },
+];
+// Location names covered by the active pill, or null for All.
+function activeLocs() {
+  const p = PILLS.find(p => p.key === activePill);
+  return p ? p.locs : null;
+}
 
 // ── Screens ───────────────────────────────────────────────────────────────────
 const loadingScreen = document.getElementById('loading-screen');
@@ -330,9 +350,11 @@ function totals(product) {
   }), { onHand:0, allocated:0, onOrder:0, available:0, inTransit:0 });
 }
 function availableForProduct(p) {
-  if (activeLocation === 'ALL') return totals(p).available;
-  const loc = p.locations.find(l => l.loc === activeLocation);
-  return loc ? loc.available : 0;
+  const locs = activeLocs();
+  if (!locs) return totals(p).available;
+  return p.locations
+    .filter(l => locs.includes(l.loc))
+    .reduce((sum, l) => sum + l.available, 0);
 }
 
 // ── Filter ────────────────────────────────────────────────────────────────────
@@ -342,8 +364,9 @@ function filterProducts() {
     const haystack = [p.product, p.brand, p.sku].filter(Boolean).join(' ').toLowerCase();
     const matchesQuery = tokens.length === 0 || tokens.every(t => haystack.includes(t));
     if (!matchesQuery) return false;
-    if (activeLocation === 'ALL') return true;
-    return p.locations.some(l => l.loc === activeLocation && (l.available > 0 || l.onHand > 0));
+    const locs = activeLocs();
+    if (!locs) return true;
+    return p.locations.some(l => locs.includes(l.loc) && (l.available > 0 || l.onHand > 0));
   });
 }
 
@@ -402,21 +425,12 @@ function renderResults() {
 
 // ── Render pills ──────────────────────────────────────────────────────────────
 function renderPills() {
-  const pills = [
-    { key: 'ALL',                                  label: 'All' },
-    { key: '14 Degrees',                           label: '14 Degrees' },
-    { key: 'NSW Liquor Logistics',                 label: 'NSW LL' },
-    { key: 'Holding Warehouse/Export Stock',       label: 'Holding' },
-    { key: 'ELWOOD BATHERS - CONSIGNMENT STOCK',   label: 'Elwood' },
-    { key: 'DOUG LOCKWOOD WAREHOUSE DROUIN',       label: 'Drouin' },
-    { key: 'SANECTOR Mildura/Melbourne',           label: 'Sanector' },
-  ];
-  document.getElementById('pills-container').innerHTML = pills.map(p =>
-    `<button class="pill${activeLocation === p.key ? ' active' : ''}" data-location="${p.key}">${p.label}</button>`
+  document.getElementById('pills-container').innerHTML = PILLS.map(p =>
+    `<button class="pill${activePill === p.key ? ' active' : ''}" data-pill="${p.key}">${p.label}</button>`
   ).join('');
   document.getElementById('pills-container').querySelectorAll('.pill').forEach(btn => {
     btn.addEventListener('click', () => {
-      activeLocation = btn.dataset.location;
+      activePill = btn.dataset.pill;
       renderPills();
       renderResults();
     });

@@ -56,6 +56,10 @@ If the app shows a stale date after the morning webhook run:
 2. Check Vercel function logs (vercel.com → project → Functions → webhook) — was the webhook called?
 3. Confirm blob contents: `curl "https://principalwine-dailystock.vercel.app/api/inventory?bust=1"` — if this shows today's date, it's a browser cache issue (hard refresh with Cmd+Shift+R).
 
+## Warehouse pills (`public/index.html`)
+
+The quick-filter pills are the hand-maintained `PILLS` list near the top of the script. Each pill lists the exact Cin7 location names it covers (`locs`), and one pill may cover several (e.g. "Holding" = the VIC export holding warehouse + Holding Warehouse NSW). When Cin7 adds, renames or retires a warehouse, update that list; a stale name makes the pill silently show nothing. To see the names currently in the report: `curl -s "https://principalwine-dailystock.vercel.app/api/inventory?bust=1" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const s=new Set();for(const p of JSON.parse(d).products)for(const l of p.locations)s.add(l.loc);console.log([...s].join("\n"))})'`. As of 2026-09-24 the main warehouses are BAM Wine Logistics VIC / NSW / QLD; 14 Degrees and NSW Liquor Logistics are no longer used.
+
 ## Search behaviour (`public/index.html`)
 
 The search query is split into individual tokens (whitespace-delimited). All tokens must appear somewhere across the product name, brand, and SKU fields (AND logic, any order). This means "Frankland Cabernet" matches "2023 Frankland Estate Cabernet" even though the words are not adjacent. The `highlight` function also highlights each token independently.
